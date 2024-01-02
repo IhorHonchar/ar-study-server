@@ -3,6 +3,8 @@ package ua.honchar
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import org.jetbrains.exposed.sql.Database
+import ua.honchar.data.db.DatabaseManager
 import ua.honchar.plugins.*
 
 fun main() {
@@ -15,4 +17,5 @@ fun Application.module() {
     configureSerialization()
     configureMonitoring()
     configureRouting()
+    configureDI()
 }
