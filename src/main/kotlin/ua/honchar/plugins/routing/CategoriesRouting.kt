@@ -25,7 +25,6 @@ fun Routing.categories() {
         get("{langId}") {
             val langId = call.parameters["langId"]?.toIntOrNull()
             val res = repository.getCategoriesByLang(langId)
-            delay(1000L)
             respondResult(res)
         }
     }

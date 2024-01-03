@@ -4,8 +4,15 @@ import org.ktorm.database.Database
 import org.ktorm.dsl.*
 import ua.honchar.data.db.category.DbCategory
 import ua.honchar.data.db.category.DbCategoryLanguage
+import ua.honchar.data.db.category.DbCategoryModule
 import ua.honchar.data.db.languages.DBLanguage
+import ua.honchar.data.db.lesson.DbLessonLessonPart
+import ua.honchar.data.db.lesson_part.DbLessonPart
+import ua.honchar.data.db.model.DbModel
+import ua.honchar.data.db.module.DbModule
+import ua.honchar.data.db.module.DbModuleLesson
 import ua.honchar.domain.model.Category
+import ua.honchar.domain.model.Model
 
 class DatabaseManager(private val database: Database) {
 
@@ -40,5 +47,26 @@ class DatabaseManager(private val database: Database) {
                 row[DBLanguage.id]
             }
             .firstNotNullOfOrNull { it }
+    }
+
+    fun getModelsByCategory(categoryId: Int): List<Model> {
+        return database.from(DbCategoryModule)
+            .innerJoin(DbModule, on = DbCategoryModule.moduleId eq DbModule.id)
+            .innerJoin(DbModuleLesson, on = DbModule.id eq DbModuleLesson.moduleId)
+            .innerJoin(DbLessonLessonPart, on = DbModuleLesson.lessonId eq DbLessonLessonPart.lessonId)
+            .innerJoin(DbLessonPart, on = DbLessonLessonPart.lessonPartId eq DbLessonPart.id)
+            .innerJoin(DbModel, on = DbLessonPart.modelId eq DbModel.id)
+            .select(DbModel.id, DbModel.name)
+            .where(DbCategoryModule.categoryId eq categoryId)
+            .map { query ->
+                val id = query[DbModel.id]
+                val name = query[DbModel.name]
+                if (id != null && name != null) {
+                    Model(id, name)
+                } else {
+                    null
+                }
+            }
+            .mapNotNull { it }
     }
 }
