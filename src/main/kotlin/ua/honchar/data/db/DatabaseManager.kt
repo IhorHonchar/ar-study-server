@@ -24,7 +24,7 @@ class DatabaseManager(private val database: Database) {
     fun getAllCategoriesByLang(langId: Int): List<CategoryDTO> {
         return database.from(DbCategory)
             .innerJoin(DbCategoryLanguage, on = DbCategory.id eq DbCategoryLanguage.categoryId)
-            .select(DbCategory.id, DbCategoryLanguage.translation, DbCategory.imageName)
+            .select(DbCategory.id, DbCategoryLanguage.translation, DbCategory.imageName, DbCategory.order)
             .where(DbCategoryLanguage.languageId eq langId)
             .map { query ->
                 val id = query[DbCategory.id]
@@ -69,15 +69,15 @@ class DatabaseManager(private val database: Database) {
 
     fun getAllModels(langId: Int): List<ModelDTO> {
         return database.from(DbModel)
-            .innerJoin(DbLessonPart, on = DbModel.id eq DbLessonPart.modelId)
-            .innerJoin(DbLessonLessonPart, on = DbLessonPart.id eq DbLessonLessonPart.lessonPartId)
-            .innerJoin(DbModuleLesson, on = DbLessonLessonPart.lessonId eq DbModuleLesson.lessonId)
-            .innerJoin(DbCategoryModule, on = DbModuleLesson.moduleId eq DbCategoryModule.moduleId)
-            .innerJoin(DbCategory, on = DbCategoryModule.categoryId eq DbCategory.id)
-            .innerJoin(DbModelNameLanguage, on = DbModel.id eq DbModelNameLanguage.modelId)
-            .innerJoin(DbCategoryNameLanguage, on = DbCategory.id eq DbCategoryNameLanguage.categoryId)
-            .select(DbModel.id, DbModel.fileName, DbModelNameLanguage.name, DbCategory.id, DbCategoryNameLanguage.translation)
-            .where {(DbModelNameLanguage.languageId eq langId) and (DbCategoryNameLanguage.languageId eq langId)}
+            .leftJoin(DbLessonPart, on = DbModel.id eq DbLessonPart.modelId)
+            .leftJoin(DbLessonLessonPart, on = DbLessonPart.id eq DbLessonLessonPart.lessonPartId)
+            .leftJoin(DbModuleLesson, on = DbLessonLessonPart.lessonId eq DbModuleLesson.lessonId)
+            .leftJoin(DbCategoryModule, on = DbModuleLesson.moduleId eq DbCategoryModule.moduleId)
+            .leftJoin(DbCategory, on = DbCategoryModule.categoryId eq DbCategory.id)
+            .leftJoin(DbModelNameLanguage, on = (DbModel.id eq DbModelNameLanguage.modelId) and (DbModelNameLanguage.languageId eq langId))
+            .leftJoin(DbCategoryNameLanguage, on = (DbCategory.id eq DbCategoryNameLanguage.categoryId) and (DbCategoryNameLanguage.languageId eq langId))
+            .selectDistinct(DbModel.id, DbModel.fileName, DbModelNameLanguage.name, DbCategory.id, DbCategoryNameLanguage.translation)
+            .where{ (DbModelNameLanguage.languageId eq langId) or (DbModelNameLanguage.languageId.isNull())}
             .map(::queryToModel)
             .mapNotNull { it }
     }
