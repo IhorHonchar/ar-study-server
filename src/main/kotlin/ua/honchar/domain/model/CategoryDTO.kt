@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import ua.honchar.core.getImagePath
 
 @Serializable
-data class Category(
+data class CategoryDTO(
     val id: Int,
     val name: String,
     val order: Int

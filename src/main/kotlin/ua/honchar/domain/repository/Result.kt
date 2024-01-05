@@ -1,4 +1,4 @@
-package ua.honchar.data.repository
+package ua.honchar.domain.repository
 
 
 sealed class Result<T> {

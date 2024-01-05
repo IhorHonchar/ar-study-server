@@ -7,12 +7,12 @@ import org.ktorm.schema.varchar
 
 object DbModel: Table<DbModelEntity>("models") {
     val id = int("id").primaryKey().bindTo { it.id }
-    val name = varchar("name").bindTo { it.name }
+    val fileName = varchar("file_name").bindTo { it.fileName }
 }
 
 interface DbModelEntity: Entity<DbModelEntity> {
     val id: Int
-    val name: String
+    val fileName: String
 
     companion object: Entity.Factory<DbModelEntity>()
 }
