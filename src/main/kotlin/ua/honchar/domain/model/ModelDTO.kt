@@ -5,7 +5,7 @@ import ua.honchar.core.getModelPath
 
 @Serializable
 class ModelDTO {
-    constructor(id: Int, name: String, fileName: String, categoryId: Int?, categoryName: String?) {
+    constructor(id: Int?, name: String?, fileName: String?, categoryId: Int?, categoryName: String?) {
         this.name = name
         this.id = id
         this.fileName = fileName
@@ -14,9 +14,9 @@ class ModelDTO {
         modelPath = getModelPath("models/$fileName")
     }
 
-    val name: String
-    val id: Int
-    val fileName: String
+    val name: String?
+    val id: Int?
+    val fileName: String?
     val categoryId: Int?
     val categoryName: String?
     private var modelPath: String = ""

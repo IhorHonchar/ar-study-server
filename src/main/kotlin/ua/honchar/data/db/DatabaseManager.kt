@@ -7,17 +7,18 @@ import ua.honchar.data.db.category.DbCategoryLanguage
 import ua.honchar.data.db.category.DbCategoryModule
 import ua.honchar.data.db.category.DbCategoryNameLanguage
 import ua.honchar.data.db.languages.DBLanguage
+import ua.honchar.data.db.lesson.DbLesson
 import ua.honchar.data.db.lesson.DbLessonLessonPart
+import ua.honchar.data.db.lesson.DbLessonNameLanguage
 import ua.honchar.data.db.lesson_part.DbLessonPart
+import ua.honchar.data.db.lesson_part.DbLessonPartTextLanguage
 import ua.honchar.data.db.model.DbModel
 import ua.honchar.data.db.model.DbModelNameLanguage
 import ua.honchar.data.db.module.DbModule
 import ua.honchar.data.db.module.DbModuleInfoLanguage
 import ua.honchar.data.db.module.DbModuleLesson
 import ua.honchar.data.db.module.DbModuleNameLanguage
-import ua.honchar.domain.model.CategoryDTO
-import ua.honchar.domain.model.ModelDTO
-import ua.honchar.domain.model.ModuleDTO
+import ua.honchar.domain.model.*
 
 class DatabaseManager(private val database: Database) {
 
@@ -74,10 +75,22 @@ class DatabaseManager(private val database: Database) {
             .leftJoin(DbModuleLesson, on = DbLessonLessonPart.lessonId eq DbModuleLesson.lessonId)
             .leftJoin(DbCategoryModule, on = DbModuleLesson.moduleId eq DbCategoryModule.moduleId)
             .leftJoin(DbCategory, on = DbCategoryModule.categoryId eq DbCategory.id)
-            .leftJoin(DbModelNameLanguage, on = (DbModel.id eq DbModelNameLanguage.modelId) and (DbModelNameLanguage.languageId eq langId))
-            .leftJoin(DbCategoryNameLanguage, on = (DbCategory.id eq DbCategoryNameLanguage.categoryId) and (DbCategoryNameLanguage.languageId eq langId))
-            .selectDistinct(DbModel.id, DbModel.fileName, DbModelNameLanguage.name, DbCategory.id, DbCategoryNameLanguage.translation)
-            .where{ (DbModelNameLanguage.languageId eq langId) or (DbModelNameLanguage.languageId.isNull())}
+            .leftJoin(
+                DbModelNameLanguage,
+                on = (DbModel.id eq DbModelNameLanguage.modelId) and (DbModelNameLanguage.languageId eq langId)
+            )
+            .leftJoin(
+                DbCategoryNameLanguage,
+                on = (DbCategory.id eq DbCategoryNameLanguage.categoryId) and (DbCategoryNameLanguage.languageId eq langId)
+            )
+            .selectDistinct(
+                DbModel.id,
+                DbModel.fileName,
+                DbModelNameLanguage.name,
+                DbCategory.id,
+                DbCategoryNameLanguage.translation
+            )
+            .where { (DbModelNameLanguage.languageId eq langId) or (DbModelNameLanguage.languageId.isNull()) }
             .map(::queryToModel)
             .mapNotNull { it }
     }
@@ -104,6 +117,68 @@ class DatabaseManager(private val database: Database) {
                 }
             }
             .mapNotNull { it }
+    }
+
+    fun getLessonsByModuleId(moduleId: Int, langId: Int): List<LessonDTO> {
+        val lessonsByModule = database.from(DbLesson)
+            .innerJoin(DbLessonNameLanguage, on = DbLesson.id eq DbLessonNameLanguage.lessonId)
+            .innerJoin(DbModuleLesson, on = DbLesson.id eq DbModuleLesson.lessonId)
+            .select(DbLesson.id, DbLessonNameLanguage.translation)
+            .where { (DbModuleLesson.moduleId eq moduleId) and (DbLessonNameLanguage.languageId eq langId) }
+            .map {
+                val lessonId = it[DbLesson.id]
+                val lessonName = it[DbLessonNameLanguage.translation]
+                if (lessonId != null && lessonName != null) {
+                    LessonDTO(
+                        id = lessonId,
+                        name = lessonName,
+                        emptyList()
+                    )
+                } else {
+                    null
+                }
+            }
+            .mapNotNull { it }
+        val lessonPart = database.from(DbLessonPart)
+            .innerJoin(DbLessonLessonPart, on = DbLessonPart.id eq DbLessonLessonPart.lessonPartId)
+            .leftJoin(DbLessonPartTextLanguage, on = DbLessonPart.id eq DbLessonPartTextLanguage.lessonPartId)
+            .leftJoin(DbModel, on = DbLessonPart.modelId eq DbModel.id)
+            .leftJoin(DbModelNameLanguage, on = DbModel.id eq DbModelNameLanguage.modelId)
+            .select(
+                DbLessonLessonPart.lessonId,
+                DbLessonPart.id,
+                DbLessonPartTextLanguage.translation,
+                DbModel.id,
+                DbModel.fileName,
+                DbModelNameLanguage.name
+            )
+            .where { (DbLessonLessonPart.lessonId inList lessonsByModule.map { it.id }) and (DbLessonPartTextLanguage.languageId eq langId) and (DbModelNameLanguage.languageId eq langId) }
+            .map {
+                val lessonPartId = it[DbLessonPart.id]
+                val lessonPartText = it[DbLessonPartTextLanguage.translation]
+                val lessonId = it[DbLessonLessonPart.lessonId]
+                if (lessonPartId != null && lessonPartText != null && lessonId != null) {
+                    lessonId to LessonPartDTO(
+                        id = lessonPartId,
+                        text = lessonPartText,
+                        model = ModelDTO(
+                            id = it[DbModel.id],
+                            fileName = it[DbModel.fileName],
+                            name = it[DbModelNameLanguage.name],
+                            categoryId = null,
+                            categoryName = null
+                        )
+                    )
+                } else {
+                    null
+                }
+            }.mapNotNull { it }
+        return lessonsByModule.map { lessonModel ->
+            val lessonPartsByLesson = lessonPart.filter { (lessonId, _) ->
+                lessonId == lessonModel.id
+            }.map { it.second }
+            lessonModel.copy(lessonParts = lessonPartsByLesson)
+        }
     }
 
     private fun queryToModel(query: QueryRowSet): ModelDTO? {
