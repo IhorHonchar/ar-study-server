@@ -1,11 +1,11 @@
-package ua.honchar.data.db.languages
+package ua.honchar.data.db.language
 
 import org.ktorm.entity.Entity
 import org.ktorm.schema.Table
 import org.ktorm.schema.int
 import org.ktorm.schema.varchar
 
-object DBLanguage: Table<DbLanguageEntity>("languages") {
+object DbLanguage: Table<DbLanguageEntity>("languages") {
     val id = int("id").primaryKey().bindTo { it.id }
     val language = varchar("language").bindTo { it.language }
 }

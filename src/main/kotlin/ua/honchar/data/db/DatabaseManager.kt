@@ -6,7 +6,7 @@ import ua.honchar.data.db.category.DbCategory
 import ua.honchar.data.db.category.DbCategoryLanguage
 import ua.honchar.data.db.category.DbCategoryModule
 import ua.honchar.data.db.category.DbCategoryNameLanguage
-import ua.honchar.data.db.languages.DBLanguage
+import ua.honchar.data.db.language.DbLanguage
 import ua.honchar.data.db.lesson.DbLesson
 import ua.honchar.data.db.lesson.DbLessonLessonPart
 import ua.honchar.data.db.lesson.DbLessonNameLanguage
@@ -18,6 +18,7 @@ import ua.honchar.data.db.module.DbModule
 import ua.honchar.data.db.module.DbModuleInfoLanguage
 import ua.honchar.data.db.module.DbModuleLesson
 import ua.honchar.data.db.module.DbModuleNameLanguage
+import ua.honchar.data.db.user.DbUser
 import ua.honchar.domain.model.*
 
 class DatabaseManager(private val database: Database) {
@@ -46,11 +47,11 @@ class DatabaseManager(private val database: Database) {
     }
 
     fun getDefaultLangId(): Int? {
-        return database.from(DBLanguage)
-            .select(DBLanguage.id)
-            .orderBy(DBLanguage.id.asc())
+        return database.from(DbLanguage)
+            .select(DbLanguage.id)
+            .orderBy(DbLanguage.id.asc())
             .map { row ->
-                row[DBLanguage.id]
+                row[DbLanguage.id]
             }
             .firstNotNullOfOrNull { it }
     }
@@ -178,6 +179,54 @@ class DatabaseManager(private val database: Database) {
                 lessonId == lessonModel.id
             }.map { it.second }
             lessonModel.copy(lessonParts = lessonPartsByLesson)
+        }
+    }
+
+    fun getAllLanguages(): List<LanguageDTO> {
+        return database.from(DbLanguage)
+            .select(DbLanguage.id, DbLanguage.language)
+            .map {
+                val id = it[DbLanguage.id]
+                val language = it[DbLanguage.language]
+                if (id != null && language != null) {
+                    LanguageDTO(id, language)
+                } else {
+                    null
+                }
+            }
+            .mapNotNull { it }
+    }
+
+    fun getUserData(login: String, pass: String): UserDTO? {
+        return database.from(DbUser)
+            .select(DbUser.login, DbUser.name)
+            .where { (DbUser.login eq login) and (DbUser.pass eq pass) }
+            .map {
+                val loginId = it[DbUser.login]
+                if (loginId != null) {
+                    UserDTO(
+                        name = it[DbUser.name].orEmpty(),
+                        login = loginId,
+                    )
+                } else {
+                    null
+                }
+            }
+            .firstNotNullOfOrNull { it }
+    }
+
+    fun insertUser(login: String, pass: String, name: String): UserDTO? {
+        val userExists = database.from(DbUser).select().where { DbUser.login eq login }.totalRecordsInAllPages > 0
+
+        return if (!userExists) {
+            database.insert(DbUser) {
+                set(it.login, login)
+                set(it.name, name)
+                set(it.pass, pass)
+            }
+            UserDTO(name, login)
+        } else {
+            null
         }
     }
 
